@@ -1,0 +1,301 @@
+# PRD - Car Management
+
+## Document Information
+
+| Field | Details |
+|---|---|
+| **Product / Feature Name** | Car Management (Inventory, Service, Delivery & Pickup) |
+| **Author** | Copilot |
+| **Date** | |
+| **Version** | |
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Problem Statement](#problem-statement)
+3. [Functional Requirements](#functional-requirements)
+4. [Non-Functional Requirement](#non-functional-requirement)
+5. [Dependency & Constraints](#dependency--constraints)
+6. [Success Metrics](#success-metrics)
+
+---
+
+## Overview
+
+### Background
+
+Our company is expanding from car sales into car rental. Unlike sales, car rental requires ongoing management of each vehicle throughout its lifecycle — from availability tracking and assignment to rental bookings, through service and maintenance scheduling, to pickup and return logistics. There is currently no system in place to manage these operations. Without it, fleet managers must rely on manual processes that are error-prone, difficult to scale, and unable to provide the visibility needed to run a reliable rental business.
+
+### Objective
+
+To build a Car Management module within the car rental system that enables fleet managers and operations staff to track, maintain, assign, and coordinate vehicles efficiently — ensuring cars are available, road-worthy, and properly handed over to and returned from customers.
+
+### Goals
+
+- Maintain a real-time inventory of all rental vehicles, including their availability, condition, and location.
+- Automate service and maintenance scheduling with notifications to prevent vehicle downtime.
+- Streamline the car assignment process to rental bookings, minimising manual effort and conflicts.
+- Manage end-to-end pickup and return logistics, including documentation and damage checks.
+- Record and track incidents during rental periods.
+- Support customer-chosen delivery and pickup locations.
+- Provide utilisation, downtime, and maintenance reporting to support operations decisions.
+
+---
+
+## Problem Statement
+
+Fleet managers and operations staff currently have no dedicated system to manage the car inventory for rentals. Key pain points include:
+
+- **No centralised inventory view**: There is no single place to see which cars are available, where they are located, what condition they are in, and when they are due for service.
+- **Manual booking-to-car assignment**: Assigning cars to confirmed rental bookings is done manually, leading to double-bookings, delays, and customer complaints.
+- **Reactive maintenance**: There is no proactive scheduling or reminder system for car service, leading to unexpected breakdowns and vehicle downtime.
+- **Inconsistent pickup/return handling**: Without a structured process, pickup and return handovers lack consistent documentation (photos, damage reports, signatures), creating disputes and liability gaps.
+- **No incident tracking**: Accidents and breakdowns during a rental period are not formally recorded in the system, making it difficult to track history or manage costs.
+- **No delivery/pickup logistics management**: Customer requests for delivery or pickup at specific locations cannot be tracked or fulfilled systematically.
+- **Limited reporting**: Management cannot get reliable data on vehicle utilisation, downtime, or maintenance costs.
+
+**Key users affected:**
+- **Fleet Managers** — responsible for the overall vehicle inventory, service schedules, and reporting.
+- **Operations Staff** — responsible for assigning cars to bookings and coordinating logistics.
+- **Field Agents / Drivers** — responsible for executing pickups, deliveries, and returns.
+- **Customers** — affected by car availability, condition, and convenience of pickup/return.
+
+**Why this is important now:**
+
+The car rental business is being launched. Without this Car Management module, the business cannot operate reliably — there is no foundation for tracking inventory, fulfilling bookings, or maintaining vehicles. This is a foundational capability that must be in place before launch.
+
+---
+
+## Functional Requirements
+
+### US-CM-01: View Car Inventory
+
+**Statement:** **As a** fleet manager, **I want** to view the complete list of rental cars with their current status, **so that** I can have a real-time picture of the fleet and make informed decisions.
+
+**Requirement Detail:**
+The system must provide a centralised inventory screen listing all cars. Each car entry must show: licence plate, make/model/year, current availability status (available, rented, in service, unavailable), current location, condition rating, and next scheduled service date.
+
+**Acceptance Criteria:**
+
+- **Given** a fleet manager is logged into the system,
+  **When** they navigate to the Car Inventory page,
+  **Then** they see a list of all cars with their licence plate, make/model/year, availability status, location, condition, and next service date.
+
+- **Given** a fleet manager views the inventory,
+  **When** they filter by availability status,
+  **Then** only cars matching the selected status are displayed.
+
+---
+
+### US-CM-02: Add and Update Car Details
+
+**Statement:** **As a** fleet manager, **I want** to add new cars to the system and update existing car information, **so that** the fleet inventory is always accurate and up to date.
+
+**Requirement Detail:**
+The system must allow fleet managers to create new car records with all relevant details (licence plate, make, model, year, colour, fuel type, seating capacity, current location, condition, and service schedule). Existing records must be editable. Cars must be able to be marked as inactive or removed from the rental pool.
+
+**Acceptance Criteria:**
+
+- **Given** a fleet manager opens the Add Car form,
+  **When** they fill in all required fields and submit,
+  **Then** the new car appears in the inventory with the correct details.
+
+- **Given** a fleet manager opens an existing car record,
+  **When** they update one or more fields and save,
+  **Then** the inventory reflects the updated information.
+
+- **Given** a fleet manager marks a car as inactive,
+  **When** operations staff try to assign it to a booking,
+  **Then** the system prevents the assignment and shows an appropriate message.
+
+---
+
+### US-CM-03: Assign Car to Rental Booking
+
+**Statement:** **As an** operations staff member, **I want** to assign an available car to a confirmed rental booking, **so that** the customer has a confirmed vehicle for their rental period.
+
+**Requirement Detail:**
+The system must allow operations staff to select and assign an available car to a booking. The system must only present cars that are available for the full rental period at the relevant pickup location. Once assigned, the car's status must change to "reserved" and it must no longer appear as available for conflicting dates.
+
+**Acceptance Criteria:**
+
+- **Given** a confirmed rental booking exists,
+  **When** operations staff opens the booking and selects "Assign Car",
+  **Then** the system shows only cars that are available for the entire rental period and at the required pickup location.
+
+- **Given** operations staff selects a car and confirms the assignment,
+  **When** the assignment is saved,
+  **Then** the car's status changes to "reserved" for that booking period and is no longer shown as available for conflicting dates.
+
+- **Given** a car is already assigned to a booking,
+  **When** operations staff attempts to assign the same car to a conflicting booking,
+  **Then** the system blocks the assignment and displays a conflict warning.
+
+---
+
+### US-CM-04: Manage Service and Maintenance Schedules
+
+**Statement:** **As a** fleet manager, **I want** to schedule and track car service and maintenance activities, **so that** vehicles remain road-worthy and unexpected breakdowns are minimised.
+
+**Requirement Detail:**
+The system must allow fleet managers to create and manage service/maintenance records for each car. Each record must include: type of service (e.g., routine service, tyre change, inspection), scheduled date, estimated downtime, and responsible service provider. When a car is scheduled for service, its availability must be blocked for the service period.
+
+**Acceptance Criteria:**
+
+- **Given** a fleet manager opens a car record,
+  **When** they add a new service schedule entry with type, date, and duration,
+  **Then** the car's availability is blocked for the service period and the entry appears in the service history.
+
+- **Given** a service is scheduled for a car,
+  **When** the scheduled date is within 7 days,
+  **Then** the system sends an automatic reminder notification to the fleet manager.
+
+- **Given** a service has been completed,
+  **When** the fleet manager marks it as done,
+  **Then** the car's status is updated and the next service date is recalculated (if applicable).
+
+---
+
+### US-CM-05: Manage Car Pickup Logistics
+
+**Statement:** **As an** operations staff member, **I want** to record and manage the car pickup process for a rental, **so that** the handover is documented and both parties are protected.
+
+**Requirement Detail:**
+The system must support a structured pickup workflow. Operations staff or field agents must be able to record: pickup date and time, pickup location, fuel level, odometer reading, condition notes, and damage check results. The system must require photo uploads and a digital or manual signature to complete the pickup.
+
+**Acceptance Criteria:**
+
+- **Given** a rental booking has an assigned car and the pickup date has arrived,
+  **When** a field agent opens the pickup form,
+  **Then** they can record pickup time, location, fuel level, odometer, condition notes, and upload photos.
+
+- **Given** a field agent completes the condition check and uploads at least one photo,
+  **When** they capture the customer's signature and confirm the pickup,
+  **Then** the booking status changes to "Active" and the car status changes to "Rented".
+
+- **Given** a field agent tries to complete a pickup without uploading photos or capturing a signature,
+  **When** they attempt to submit the form,
+  **Then** the system prevents submission and highlights the missing fields.
+
+---
+
+### US-CM-06: Manage Car Return Logistics
+
+**Statement:** **As an** operations staff member, **I want** to record and manage the car return process at the end of a rental, **so that** any damage or discrepancies are documented and the car can be prepared for the next rental.
+
+**Requirement Detail:**
+The system must support a structured return workflow. Field agents must be able to record: return date and time, return location, fuel level, odometer reading, condition notes, and damage check results. Photo uploads and a signature must be required. If damage is found, the system must generate a damage report and flag the car for inspection before it is made available again.
+
+**Acceptance Criteria:**
+
+- **Given** a rental is in "Active" status,
+  **When** a field agent opens the return form and fills in return details,
+  **Then** they can record time, location, fuel level, odometer, condition notes, and upload return photos.
+
+- **Given** a field agent marks damage during the return check,
+  **When** the return is confirmed,
+  **Then** a damage report is generated, the booking is flagged for damage review, and the car status changes to "Unavailable – Inspection Required".
+
+- **Given** no damage is found during the return,
+  **When** the return is confirmed with photos and signature,
+  **Then** the booking status changes to "Completed" and the car status changes to "Available" (after any required cleaning/preparation period).
+
+---
+
+### US-CM-07: Record Incidents During a Rental
+
+**Statement:** **As an** operations staff member, **I want** to log incidents (accidents or breakdowns) that occur during an active rental, **so that** there is a formal record attached to the booking and vehicle history.
+
+**Requirement Detail:**
+The system must allow an incident to be logged against an active booking and a car. Each incident record must include: incident type (accident, breakdown, other), date and time, location, description, reported by, and any supporting photos or documents. The car must be flagged for inspection following an incident.
+
+**Acceptance Criteria:**
+
+- **Given** an active rental booking,
+  **When** an operations staff member opens the incident log and submits a new incident with type, date/time, location, and description,
+  **Then** the incident is saved and linked to both the booking and the car's history.
+
+- **Given** an incident is logged for a car,
+  **When** the rental ends and the car is returned,
+  **Then** the car status is automatically set to "Unavailable – Incident Review" until cleared by a fleet manager.
+
+- **Given** a fleet manager reviews and closes an incident,
+  **When** they mark the car as cleared,
+  **Then** the car becomes available for new assignments.
+
+---
+
+### US-CM-08: Support Delivery and Pickup at Customer-Chosen Locations
+
+**Statement:** **As a** customer, **I want** to request car delivery to my location and/or pickup from a location of my choice, **so that** I don't need to travel to a company depot.
+
+**Requirement Detail:**
+The system must allow customers (or operations staff on their behalf) to specify a delivery address and/or a return pickup address when making a booking. Operations staff must be able to view and manage all pending delivery and pickup tasks with their scheduled times and addresses. Field agents must be assigned to each task and able to update task status.
+
+**Acceptance Criteria:**
+
+- **Given** a customer is creating a booking,
+  **When** they select the delivery or custom return pickup option and enter an address,
+  **Then** the address is saved against the booking as a delivery or pickup task.
+
+- **Given** a delivery or pickup task has been created,
+  **When** an operations staff member opens the logistics dashboard,
+  **Then** they can see all pending tasks with address, scheduled time, assigned car, and assigned field agent.
+
+- **Given** a field agent is assigned to a delivery task,
+  **When** they complete the delivery and confirm on the system,
+  **Then** the task status changes to "Completed" and the booking pickup is recorded.
+
+---
+
+### US-CM-09: View Fleet Utilisation and Maintenance Reports
+
+**Statement:** **As a** fleet manager, **I want** to view reports on vehicle utilisation, downtime, and maintenance activity, **so that** I can make data-driven decisions about the fleet.
+
+**Requirement Detail:**
+The system must provide a reporting section with the following reports: vehicle utilisation rate (percentage of time each car is rented vs. available) over a selectable period, vehicle downtime (time in service or unavailable) over a selectable period, and maintenance cost and activity history per vehicle. Reports must be filterable by date range and exportable as CSV or PDF.
+
+**Acceptance Criteria:**
+
+- **Given** a fleet manager opens the Reports section,
+  **When** they select the "Vehicle Utilisation" report and a date range,
+  **Then** the system displays a utilisation rate for each car for that period.
+
+- **Given** a fleet manager opens the "Downtime" report,
+  **When** they select a date range,
+  **Then** the system shows each car's total days in service or unavailable for that period.
+
+- **Given** a fleet manager views any report,
+  **When** they click "Export",
+  **Then** the system generates a downloadable CSV or PDF file of the report data.
+
+---
+
+## Non-Functional Requirement
+
+*(To be defined)*
+
+---
+
+## Dependency & Constraints
+
+- **Booking System dependency**: The Car Management module depends on the Booking/Reservation system being in place. Car assignment (US-CM-03) and incident logging (US-CM-07) require confirmed booking records to exist.
+- **User Management dependency**: Role-based access (fleet manager, operations staff, field agent) must be supported by the user management system.
+- **Notification system**: Automated service reminders (US-CM-04) require an in-app or email notification mechanism to be available.
+- **Desktop web only**: The initial release targets desktop web browsers only. A mobile-optimised or native mobile experience for field agents (pickup, return, and delivery workflows) is out of scope for v1.
+- **No real-time GPS tracking in v1**: Integration with GPS or fleet tracking systems is identified as a future integration need. Real-time vehicle location tracking is out of scope for the initial release. Location is recorded manually at pickup and return.
+- **No automated fleet management system integration in v1**: Integration with any existing third-party fleet management platform is deferred to a later phase.
+- **Photo storage**: The system must support photo uploads for condition checks and incidents. The storage infrastructure for these files must be available.
+
+---
+
+## Success Metrics
+
+- **Fleet visibility**: 100% of rental vehicles are tracked in the system with up-to-date status and location within the first month of go-live.
+- **Booking assignment efficiency**: Reduce the time taken to assign a car to a confirmed booking by 60% compared to the current manual process.
+- **Maintenance compliance**: Achieve 90% of scheduled services completed on or before their due date within 3 months of go-live, measured by service completion records.
+- **Pickup/return documentation compliance**: 95% of pickup and return events completed with required photos and signatures within the first 2 months of operation.
+- **Incident recording**: 100% of reported incidents logged in the system within 24 hours of the event, from the first month of operation.
+- **Report adoption**: Fleet managers generate at least one utilisation or maintenance report per week within 6 weeks of go-live.
