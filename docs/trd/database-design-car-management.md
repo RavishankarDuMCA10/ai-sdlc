@@ -20,6 +20,7 @@ Stores the master record for each rental vehicle.
 | `condition_rating` | SMALLINT | NOT NULL | Condition score from 1 (poor) to 10 (excellent) |
 | `status` | VARCHAR(30) | NOT NULL | One of: `available`, `reserved`, `rented`, `in_service`, `unavailable`, `inactive` |
 | `is_active` | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether the car is in the active rental pool |
+| `next_service_date` | DATE | | Date of the next scheduled service; derived from `car_service_schedules` or set manually |
 | `created_at` | TIMESTAMP | NOT NULL | Record creation timestamp (UTC) |
 | `updated_at` | TIMESTAMP | NOT NULL | Last update timestamp (UTC) |
 
@@ -62,6 +63,7 @@ erDiagram
         SMALLINT condition_rating
         VARCHAR status
         BOOLEAN is_active
+        DATE next_service_date
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
