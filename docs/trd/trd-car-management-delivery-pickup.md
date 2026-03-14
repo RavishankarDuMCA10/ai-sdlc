@@ -61,11 +61,13 @@ The requirement allows customers (or operations staff acting on their behalf) to
 
 ### Database Design
 
-The tables required for this feature are defined in [database-design-car-management-delivery-pickup.md](database-design-car-management-delivery-pickup.md).
+The consolidated table definitions for all Car Management tables are in [database-design-car-management.md](database-design-car-management.md).
 
-Key entities:
-- **DELIVERY_PICKUP_TASK** – represents a single delivery or pickup task linked to a booking.
-- **TASK_ADDRESS** – holds the customer-specified address for the task.
+Tables introduced by this feature:
+- **`delivery_pickup_task`** – represents a single delivery or pickup task linked to a booking.
+- **`task_address`** – holds the customer-specified address for the task.
+
+This feature also references the following pre-existing tables defined in the same document: `bookings`, `users`, `cars`.
 
 ### Frontend
 
