@@ -5,7 +5,7 @@
 | Field | Details |
 |---|---|
 | **Product / Feature Name** | Car Management (Inventory, Service, Delivery & Pickup) |
-| **Author** | Copilot | RavishankarDuMCA10
+| **Author** | Copilot and RavishankarDuMCA10|
 | **Date** | |
 | **Version** | |
 
