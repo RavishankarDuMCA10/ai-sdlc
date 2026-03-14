@@ -29,6 +29,9 @@
    - 3.8 [Referral and Affiliate Programs](#38-referral-and-affiliate-programs)
    - 3.9 [Marketing Reporting and Dashboard](#39-marketing-reporting-and-dashboard)
    - 3.10 [Customer Feedback and Review Management](#310-customer-feedback-and-review-management)
+4. [Non-Functional Requirement](#non-functional-requirement)
+5. [Dependency & Constraints](#dependency--constraints)
+6. [Success Metrics](#success-metrics)
 
 ---
 
@@ -307,3 +310,33 @@ Without a dedicated marketing module in the car rental system, the team faces th
   - Only approved reviews are published publicly on the customer-facing platform.
   - Approved reviews can be tagged for use in marketing, and a filtered view shows all marketing-approved reviews available for repurposing.
   - Aggregate review scores (average rating, total reviews) are displayed on the marketing dashboard and can be embedded in campaign reporting.
+
+---
+
+## Non-Functional Requirement
+
+---
+
+## Dependency & Constraints
+
+- The marketing module is scoped to the **desktop web** application only; mobile application support is out of scope for the initial release.
+- Multi-channel campaign publishing depends on the availability and configuration of third-party platform integrations (email providers, social/ad platforms). Campaigns targeting an unintegrated channel cannot be dispatched until the integration is set up.
+- Dynamic pricing is constrained by operator-defined minimum and maximum rental rate bounds configured per vehicle category; the engine will not set prices outside those bounds.
+- Customer segmentation is limited to data available within the car rental system. External data enrichment (e.g. third-party demographic data) is out of scope for the initial release.
+- Loyalty program point redemption is subject to the availability of the rental booking engine; redemption cannot be processed if the booking engine is unavailable.
+- Referral and affiliate tracking relies on unique tracking links/codes; any booking made without a tracking link cannot be attributed retrospectively to a referral or affiliate.
+- Scheduled report delivery depends on the email notification service being operational. Failures must be retried and alerted to system administrators.
+- Customer feedback collection is only triggered for completed rentals; cancelled or voided rentals are excluded.
+
+---
+
+## Success Metrics
+
+- Increase rental bookings attributed to marketing campaigns by **20%** within the first 6 months of launch.
+- Achieve a campaign email open rate of at least **25%** and a click-through rate of at least **5%** across all email campaigns.
+- Grow the loyalty program enrolled customer base to **30%** of active rental customers within 12 months.
+- Reduce customer acquisition cost (CAC) for the rental line by **15%** through referral and affiliate channel growth within 12 months.
+- Achieve an average post-rental customer feedback response rate of at least **40%**.
+- Maintain a published average customer review rating of **4.0 stars or above** on the customer-facing platform.
+- Deliver marketing performance dashboards with data freshness no older than **24 hours** at all times.
+- Increase cross-sell conversion rate (car sales customers who complete a rental booking) by **10%** within 12 months of launch.
