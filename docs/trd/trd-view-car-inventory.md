@@ -38,7 +38,7 @@ The requirement states that fleet managers must be able to view a centralised li
 - REST API endpoint to retrieve the list of rental cars, supporting filtering by `status` and pagination.
 - Frontend inventory list page displaying all car attributes required by US-CM-01.
 - Frontend filter control for availability status.
-- Database table design for the `cars` entity.
+- Database table design for the `cars` entity (consolidated design referenced from `database-design-car-management.md`).
 - Input validation rules for the list API query parameters.
 - JWT-based authentication and role-based access control for the inventory endpoint.
 
@@ -50,7 +50,7 @@ The requirement states that fleet managers must be able to view a centralised li
 - Car assignment to bookings is out of scope (covered by US-CM-03).
 - Service schedule management is out of scope (covered by US-CM-04).
 - Pickup, return, and incident workflows are out of scope (covered by US-CM-05 through US-CM-07).
-- Real-time GPS-based location tracking is out of scope for v1. Location is a manually recorded text field.
+- Real-time GPS-based location tracking is out of scope for v1. Location is recorded as a reference to a pre-defined location record (`locations` table) and is updated manually.
 - Mobile-optimised or native mobile interface is out of scope for v1.
 - Export / report functionality for the inventory is out of scope (covered by US-CM-09).
 
@@ -60,9 +60,11 @@ The requirement states that fleet managers must be able to view a centralised li
 
 ### 4.1 Database Design
 
-The inventory view is backed by the `cars` table. Full column definitions, allowed status values, and indexes are documented in:
+The inventory view is backed by the `cars` table (joined with `locations` for the current location details). The full column definitions, allowed status values, and indexes are documented in the consolidated Car Management database design:
 
-👉 [database-design-view-car-inventory.md](./database-design-view-car-inventory.md)
+👉 [`cars` table — database-design-car-management.md#cars](./database-design-car-management.md#cars)
+
+👉 [`locations` table — database-design-car-management.md#locations](./database-design-car-management.md#locations)
 
 ---
 
@@ -124,7 +126,11 @@ The inventory view is backed by the `cars` table. Full column definitions, allow
       "colour": "string",
       "fuel_type": "string",
       "seating_capacity": "integer",
-      "current_location": "string",
+      "location": {
+        "id": "uuid",
+        "name": "string",
+        "city": "string"
+      },
       "condition_rating": "integer (1–5)",
       "status": "string (enum)",
       "next_service_date": "string (ISO 8601 date) | null"
@@ -201,7 +207,7 @@ sequenceDiagram
     API->>Auth: Validate Bearer JWT token
     Auth-->>API: Token valid, role = fleet_manager
     API->>API: Validate query parameters
-    API->>DB: SELECT cars WHERE is_active = TRUE (+ optional status filter) ORDER BY licence_plate ASC LIMIT 20 OFFSET 0
+    API->>DB: SELECT cars JOIN locations WHERE cars.is_active = TRUE (+ optional status filter) ORDER BY licence_plate ASC LIMIT 20 OFFSET 0
     DB-->>API: Rows + total count
     API-->>FE: HTTP 200 — paginated car list
     FE-->>FM: Renders inventory table
@@ -210,7 +216,7 @@ sequenceDiagram
     FE->>API: GET /api/v1/cars?status=available&page=1&page_size=20
     API->>Auth: Validate Bearer JWT token
     Auth-->>API: Token valid, role = fleet_manager
-    API->>DB: SELECT cars WHERE is_active = TRUE AND status = 'available' ORDER BY licence_plate ASC LIMIT 20 OFFSET 0
+    API->>DB: SELECT cars JOIN locations WHERE cars.is_active = TRUE AND cars.status = 'available' ORDER BY licence_plate ASC LIMIT 20 OFFSET 0
     DB-->>API: Filtered rows + count
     API-->>FE: HTTP 200 — filtered car list
     FE-->>FM: Renders filtered inventory table
@@ -270,7 +276,13 @@ function GET /api/v1/cars(request):
 
     // 5. Execute query
     rows = db.query(
-        table  = "cars",
+        table  = "cars JOIN locations ON cars.location_id = locations.id",
+        select = [
+            "cars.id", "cars.licence_plate", "cars.make", "cars.model", "cars.year",
+            "cars.colour", "cars.fuel_type", "cars.seating_capacity",
+            "cars.condition_rating", "cars.status", "cars.next_service_date",
+            "locations.id AS loc_id", "locations.name AS loc_name", "locations.city AS loc_city"
+        ],
         where  = filters,
         order  = { column: params.sort_by, direction: params.sort_order },
         limit  = params.page_size,
