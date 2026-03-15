@@ -50,3 +50,16 @@ For the TRD (technical requirement document), it must contain the following item
    
 - Security Requiement Explain the security requirements in detail, For example, if the REST API requires JWT authentication, explain what JWT algorithm is used and the payload.
 - Non-functional Requirements Leave blank 
+
+- AI usage disclaimer
+    Add a static string as follows:
+    *This document was generated with the assistance of artificial intelligence and should be reviewed by a human for accuracy and completeness.*
+
+---
+
+For the database design document, use the following rules.
+- Title is [Database Design - Feature]
+- Add a table of contents with a link to the table names.
+- Contains entity relationship diagram and table names.
+- Create a mermaid diagram for the entity relationship. don't mention the fields in the diagram. Only show the table name and cardinality.
+- Create a list of tables in tabular format. Each table contains the table name (plural, lower snake case), field name, data type, index, database constraints, and description.
