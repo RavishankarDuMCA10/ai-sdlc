@@ -43,7 +43,7 @@ The requirement asks for a system that allows fleet managers to create, manage, 
 - Persisting an audit log of all reminder notifications sent.
 - REST API endpoints to support all of the above operations.
 - Frontend UI for fleet managers to manage service schedules within a car's detail view.
-- Database design for `service_schedule`, `service_provider`, and `service_reminder_notification` tables.
+- Database design for the `car_service_schedules` table extensions and the new `car_service_reminder_notifications` table.
 
 ---
 
@@ -52,7 +52,7 @@ The requirement asks for a system that allows fleet managers to create, manage, 
 - This TRD does not cover GPS-based or IoT-triggered automatic service detection.
 - Real-time integration with third-party fleet management or telematics systems is out of scope.
 - Mobile-optimised or native mobile application support is out of scope for v1; the frontend targets desktop web browsers only.
-- Management of the `service_provider` list (create/update/deactivate providers) is outside this TRD; it is assumed providers are pre-loaded or managed by a separate admin feature.
+- The `service_provider` field in `car_service_schedules` is a free-text VARCHAR column (per the consolidated design); management of a centralised provider catalogue is outside this TRD.
 - This TRD does not cover automated scheduling logic (e.g., auto-generating the next service schedule record); the fleet manager is responsible for manually creating each record unless explicitly stated otherwise.
 - Notification delivery infrastructure (email server, in-app notification service) is assumed to be provided by the platform; this TRD covers only the trigger logic and the reminder audit log.
 - Reporting and analytics on maintenance history (covered by US-CM-09) are out of scope for this TRD.
@@ -67,11 +67,12 @@ See [database-design-car-management-service-maintenance.md](database-design-car-
 
 The following tables are required:
 
-- **`service_schedule`** – stores all service/maintenance records for each car, including type, dates, duration, provider, and status.
-- **`service_provider`** – stores the catalogue of external service providers.
-- **`service_reminder_notification`** – audit log of reminder notifications sent for upcoming service schedules.
+- **`car_service_schedules`** (consolidated table with US-CM-04 additions) – stores service/maintenance records; defined in [database-design-car-management.md](database-design-car-management.md) with additional columns documented in [database-design-car-management-service-maintenance.md](database-design-car-management-service-maintenance.md).
+- **`car_service_reminder_notifications`** – new audit log table for reminder notifications sent for upcoming schedules.
 
-The existing **`car`** table must contain a `next_service_date` (DATE) column and a `status` column that includes an `in_service` value. These are updated as a side-effect of service schedule operations.
+The existing **`cars`** table (defined in the consolidated design) contains a `next_service_date` (DATE) column and a `status` column that includes an `in_service` value. These are updated as a side-effect of service schedule operations.
+
+The **`cars`**, **`users`**, **`locations`**, **`customers`**, **`bookings`**, **`car_booking_assignments`**, and **`car_status_history`** tables follow the consolidated design defined in [database-design-car-management.md](database-design-car-management.md) and [database-design-car-management-assign-car-to-booking.md](database-design-car-management-assign-car-to-booking.md).
 
 ---
 
@@ -81,7 +82,7 @@ The existing **`car`** table must contain a `next_service_date` (DATE) column an
 - The tab displays:
   - A chronological list of all service schedule entries for that car, showing: service type, scheduled date, estimated duration, service provider name, and current status.
   - An **"Add Service Schedule"** button that opens an inline form or modal.
-- The add/edit form must include fields for: service type (dropdown), scheduled date (date picker), estimated duration in days (numeric input), service provider (searchable dropdown), and notes (text area).
+- The add/edit form must include fields for: service type (dropdown), scheduled date (date picker), estimated downtime in hours (numeric input), service provider (free-text input), and notes (text area).
 - All form validation errors must be displayed inline, next to the relevant field.
 - The UI must indicate when a car's availability has been blocked due to a service period (e.g., a visual indicator on the availability calendar or status badge).
 - Upon marking a service as completed, the form must prompt for: actual completion date and next scheduled date (optional).
@@ -97,10 +98,10 @@ The existing **`car`** table must contain a `next_service_date` (DATE) column an
 | Field | Rule |
 |---|---|
 | `car_id` | Must reference an existing, active car record. |
-| `service_type` | Must be one of: `routine_service`, `tyre_change`, `inspection`, `oil_change`, `brake_service`, `other`. |
+| `service_type` | Must be one of: `routine service`, `tyre change`, `inspection`, `oil change`, `brake service`, `other` (matches values in the consolidated `car_service_schedules` design). |
 | `scheduled_date` | Must be a valid date. Future dates are standard. Past dates are permitted only within the last 90 days to allow recording of historical service that was not logged at the time. |
-| `estimated_duration_days` | Must be a positive integer (≥ 1). |
-| `service_provider_id` | If provided, must reference an existing, active service provider. |
+| `estimated_downtime_hours` | Must be a positive decimal number (> 0) representing hours the car will be unavailable. |
+| `service_provider` | Optional free-text string; maximum 255 characters if provided. |
 | `notes` | Optional; maximum 2000 characters if provided. |
 | `actual_completion_date` | Required when marking as complete; must be equal to or after `scheduled_date`. |
 | `next_scheduled_date` | Optional when marking as complete; if provided, must be after `actual_completion_date`. |
@@ -118,10 +119,10 @@ The existing **`car`** table must contain a `next_service_date` (DATE) column an
 
 ```json
 {
-  "service_type": "routine_service",
+  "service_type": "routine service",
   "scheduled_date": "2026-04-10",
-  "estimated_duration_days": 2,
-  "service_provider_id": "uuid-of-provider",
+  "estimated_downtime_hours": 16.0,
+  "service_provider": "FastFix Garage",
   "notes": "Annual routine service"
 }
 ```
@@ -132,10 +133,10 @@ The existing **`car`** table must contain a `next_service_date` (DATE) column an
 {
   "id": "uuid-of-schedule",
   "car_id": "uuid-of-car",
-  "service_type": "routine_service",
+  "service_type": "routine service",
   "scheduled_date": "2026-04-10",
-  "estimated_duration_days": 2,
-  "service_provider_id": "uuid-of-provider",
+  "estimated_downtime_hours": 16.0,
+  "service_provider": "FastFix Garage",
   "status": "scheduled",
   "notes": "Annual routine service",
   "created_by": "uuid-of-fleet-manager",
@@ -170,13 +171,10 @@ The existing **`car`** table must contain a `next_service_date` (DATE) column an
   "data": [
     {
       "id": "uuid-of-schedule",
-      "service_type": "routine_service",
+      "service_type": "routine service",
       "scheduled_date": "2026-04-10",
-      "estimated_duration_days": 2,
-      "service_provider": {
-        "id": "uuid-of-provider",
-        "name": "FastFix Garage"
-      },
+      "estimated_downtime_hours": 16.0,
+      "service_provider": "FastFix Garage",
       "status": "scheduled",
       "notes": "Annual routine service",
       "created_at": "2026-03-14T10:00:00Z"
@@ -199,7 +197,7 @@ The existing **`car`** table must contain a `next_service_date` (DATE) column an
 - **Method:** `GET`
 - **URL:** `/api/v1/service-schedules/{scheduleId}`
 - **Path Parameter:** `scheduleId` – UUID of the service schedule
-- **Response (200 OK):** Full service schedule object (same structure as create response, including `actual_start_date`, `actual_completion_date`, `next_scheduled_date`).
+- **Response (200 OK):** Full service schedule object (same structure as create response, including `actual_completion_date`, `next_scheduled_date`, `completed_at`).
 - **Error Responses:** `404 Not Found`.
 
 ---
@@ -216,8 +214,8 @@ The existing **`car`** table must contain a `next_service_date` (DATE) column an
 {
   "service_type": "inspection",
   "scheduled_date": "2026-04-15",
-  "estimated_duration_days": 1,
-  "service_provider_id": "uuid-of-new-provider",
+  "estimated_downtime_hours": 8.0,
+  "service_provider": "QuickService Auto",
   "notes": "Updated notes"
 }
 ```
@@ -281,25 +279,25 @@ sequenceDiagram
     Client->>API: POST /api/v1/cars/{carId}/service-schedules
     API->>API: Validate request body (field rules)
     API->>CarService: Check car exists and is active
-    CarService->>DB: SELECT car WHERE id = carId
+    CarService->>DB: SELECT cars WHERE id = carId
     DB-->>CarService: Car record
     CarService-->>API: Car found / not found
 
     alt Car not found or inactive
         API-->>Client: 404 Not Found
     else Car found
-        API->>AvailabilityService: Check for conflicts in the date range from scheduled_date (inclusive) to scheduled_date + estimated_duration_days (exclusive)
-        AvailabilityService->>DB: Query service_schedule and booking tables for overlapping periods
+        API->>AvailabilityService: Check for conflicts using estimated_downtime_hours to compute end of service window from scheduled_date
+        AvailabilityService->>DB: Query car_service_schedules and bookings tables for overlapping periods
         DB-->>AvailabilityService: Conflict check result
         AvailabilityService-->>API: No conflict / Conflict found
 
         alt Conflict found
             API-->>Client: 409 Conflict
         else No conflict
-            API->>DB: INSERT service_schedule (status = scheduled)
+            API->>DB: INSERT car_service_schedules (status = scheduled, reminder_sent = false)
             DB-->>API: Created record
-            API->>CarService: Update car.next_service_date if new date is earlier
-            CarService->>DB: UPDATE car SET next_service_date = ...
+            API->>CarService: Update cars.next_service_date if new scheduled_date is earlier
+            CarService->>DB: UPDATE cars SET next_service_date = ...
             DB-->>CarService: Updated
             API-->>Client: 201 Created (service schedule)
         end
@@ -318,7 +316,7 @@ sequenceDiagram
     participant DB
 
     Client->>API: POST /api/v1/service-schedules/{scheduleId}/complete
-    API->>DB: SELECT service_schedule WHERE id = scheduleId
+    API->>DB: SELECT car_service_schedules WHERE id = scheduleId
     DB-->>API: Schedule record
 
     alt Schedule not found
@@ -327,14 +325,14 @@ sequenceDiagram
         API-->>Client: 422 Unprocessable Entity
     else Valid
         API->>API: Validate actual_completion_date and next_scheduled_date
-        API->>DB: UPDATE service_schedule SET status=completed, actual_completion_date=..., next_scheduled_date=...
+        API->>DB: UPDATE car_service_schedules SET status=completed, actual_completion_date=..., completed_at=NOW(), next_scheduled_date=...
         DB-->>API: Updated record
         API->>CarService: Determine post-service car status (available if no active bookings or other blocks exist, otherwise retain existing status)
-        CarService->>DB: UPDATE car SET status = <resolved_status>
-        API->>CarService: Recalculate car.next_service_date from remaining scheduled records
-        CarService->>DB: SELECT MIN(scheduled_date) FROM service_schedule WHERE car_id=... AND status=scheduled
+        CarService->>DB: UPDATE cars SET status = <resolved_status>
+        API->>CarService: Recalculate cars.next_service_date from remaining scheduled records
+        CarService->>DB: SELECT MIN(scheduled_date) FROM car_service_schedules WHERE car_id=... AND status=scheduled
         DB-->>CarService: Earliest upcoming date (or null)
-        CarService->>DB: UPDATE car SET next_service_date = ...
+        CarService->>DB: UPDATE cars SET next_service_date = ...
         DB-->>CarService: Updated
         API-->>Client: 200 OK (updated schedule)
     end
@@ -352,13 +350,13 @@ sequenceDiagram
     participant NotificationService
 
     Scheduler->>ReminderJob: Trigger daily (e.g., 08:00 UTC)
-    ReminderJob->>DB: SELECT service_schedules WHERE status=scheduled AND scheduled_date = TODAY + 7 days AND reminder_sent = false
+    ReminderJob->>DB: SELECT car_service_schedules WHERE status=scheduled AND scheduled_date = TODAY + 7 days AND reminder_sent = false
     DB-->>ReminderJob: List of upcoming schedules
     loop For each schedule
         ReminderJob->>NotificationService: Send reminder (fleet manager, schedule details)
         NotificationService-->>ReminderJob: Delivery result
-        ReminderJob->>DB: INSERT service_reminder_notification (channel, status, sent_at)
-        ReminderJob->>DB: UPDATE service_schedule SET reminder_sent = true WHERE id = schedule.id
+        ReminderJob->>DB: INSERT car_service_reminder_notifications (channel, status, notification_sent_at)
+        ReminderJob->>DB: UPDATE car_service_schedules SET reminder_sent = true WHERE id = schedule.id
     end
 ```
 
@@ -371,14 +369,14 @@ When a service schedule is **completed** or **cancelled**, the car's `next_servi
 ```
 FUNCTION recalculate_next_service_date(p_car_id):
     earliest_date = SELECT MIN(scheduled_date)
-                    FROM service_schedule
+                    FROM car_service_schedules
                     WHERE car_id = p_car_id
                       AND status = 'scheduled'
 
     IF earliest_date IS NOT NULL THEN
-        UPDATE car SET next_service_date = earliest_date WHERE id = p_car_id
+        UPDATE cars SET next_service_date = earliest_date WHERE id = p_car_id
     ELSE
-        UPDATE car SET next_service_date = NULL WHERE id = p_car_id
+        UPDATE cars SET next_service_date = NULL WHERE id = p_car_id
     END IF
 ```
 
