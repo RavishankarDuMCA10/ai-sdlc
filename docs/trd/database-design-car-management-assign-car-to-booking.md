@@ -2,7 +2,12 @@
 
 ## Overview
 
-This document describes the database tables required to support the **Assign Car to Rental Booking** feature (US-CM-03). It covers the car inventory, rental bookings, and the assignment relationship between them, together with supporting reference data.
+This document describes the database tables required to support the **Assign Car to Rental Booking** feature (US-CM-03). It covers the rental bookings and the assignment relationship between cars and bookings, together with supporting reference data.
+
+> **Note:** The `cars` and `car_service_schedules` tables are part of the consolidated Car Management database design and are defined in:
+> 📄 [database-design-car-management.md](./database-design-car-management.md)
+>
+> This document references those tables but does not redefine them.
 
 ---
 
@@ -10,6 +15,38 @@ This document describes the database tables required to support the **Assign Car
 
 ```mermaid
 erDiagram
+    CARS {
+        UUID          id                  PK
+        VARCHAR(20)   licence_plate
+        VARCHAR(100)  make
+        VARCHAR(100)  model
+        SMALLINT      year
+        VARCHAR(50)   colour
+        VARCHAR(20)   fuel_type
+        SMALLINT      seating_capacity
+        VARCHAR(255)  current_location
+        SMALLINT      condition_rating
+        VARCHAR(30)   status
+        BOOLEAN       is_active
+        DATE          next_service_date
+        TIMESTAMP     created_at
+        TIMESTAMP     updated_at
+    }
+
+    CAR_SERVICE_SCHEDULES {
+        UUID        id                       PK
+        UUID        car_id                   FK
+        VARCHAR     service_type
+        DATE        scheduled_date
+        DECIMAL     estimated_downtime_hours
+        VARCHAR     service_provider
+        VARCHAR     status
+        TEXT        notes
+        TIMESTAMP   completed_at
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
+    }
+
     LOCATIONS {
         uuid        id            PK
         varchar     name
@@ -17,24 +54,6 @@ erDiagram
         varchar     city
         varchar     country
         varchar     type
-        timestamp   created_at
-        timestamp   updated_at
-    }
-
-    CARS {
-        uuid        id              PK
-        varchar     licence_plate   UK
-        varchar     make
-        varchar     model
-        smallint    year
-        varchar     colour
-        varchar     fuel_type
-        smallint    seating_capacity
-        uuid        location_id     FK
-        varchar     status
-        smallint    condition_rating
-        date        next_service_date
-        boolean     is_active
         timestamp   created_at
         timestamp   updated_at
     }
@@ -93,7 +112,7 @@ erDiagram
         timestamp   changed_at
     }
 
-    LOCATIONS       ||--o{  CARS                        : "current location"
+    CARS            ||--o{  CAR_SERVICE_SCHEDULES       : "has"
     LOCATIONS       ||--o{  BOOKINGS                    : "pickup location"
     LOCATIONS       ||--o{  BOOKINGS                    : "return location"
     CUSTOMERS       ||--o{  BOOKINGS                    : "makes"
@@ -108,9 +127,22 @@ erDiagram
 
 ## Table Descriptions
 
+### `cars` and `car_service_schedules`
+
+These tables are defined in the consolidated Car Management database design:
+📄 [database-design-car-management.md](./database-design-car-management.md)
+
+Key points relevant to this feature:
+- `cars.status` values used here: `available`, `reserved`, `rented`, `in_service`, `unavailable`, `inactive`.
+- `cars.current_location` is a `VARCHAR(255)` text field that is matched against the booking's pickup location name.
+- `cars.is_active` must be `TRUE` for a car to be eligible for assignment.
+- `car_service_schedules.scheduled_date` and `car_service_schedules.estimated_downtime_hours` are used to compute the service blocking period when filtering eligible cars.
+
+---
+
 ### `locations`
 
-Represents physical locations (depots, airports, etc.) used as pickup or return points and as the current location of a car.
+Represents physical locations (depots, airports, etc.) used as pickup or return points for bookings.
 
 | Column     | Type        | Constraints      | Description                                      |
 |------------|-------------|------------------|--------------------------------------------------|
@@ -122,30 +154,6 @@ Represents physical locations (depots, airports, etc.) used as pickup or return 
 | type       | VARCHAR     | NOT NULL         | Location type (e.g., `depot`, `airport`, `other`)|
 | created_at | TIMESTAMP   | NOT NULL         | Record creation timestamp                        |
 | updated_at | TIMESTAMP   | NOT NULL         | Record last-update timestamp                     |
-
----
-
-### `cars`
-
-Represents each vehicle in the rental fleet.
-
-| Column            | Type        | Constraints      | Description                                                                              |
-|-------------------|-------------|------------------|------------------------------------------------------------------------------------------|
-| id                | UUID        | PK               | Unique identifier                                                                        |
-| licence_plate     | VARCHAR     | NOT NULL, UNIQUE | Vehicle registration/licence plate                                                       |
-| make              | VARCHAR     | NOT NULL         | Manufacturer (e.g., "Toyota")                                                            |
-| model             | VARCHAR     | NOT NULL         | Model name (e.g., "Corolla")                                                             |
-| year              | SMALLINT    | NOT NULL         | Manufacturing year                                                                       |
-| colour            | VARCHAR     | NOT NULL         | Vehicle colour                                                                           |
-| fuel_type         | VARCHAR     | NOT NULL         | Fuel type (e.g., `petrol`, `diesel`, `electric`, `hybrid`)                               |
-| seating_capacity  | SMALLINT    | NOT NULL         | Number of passenger seats                                                                |
-| location_id       | UUID        | FK → locations   | Current physical location of the car                                                     |
-| status            | VARCHAR     | NOT NULL         | Current status: `available`, `reserved`, `rented`, `in_service`, `unavailable`           |
-| condition_rating  | SMALLINT    |                  | Condition score (e.g., 1–5)                                                              |
-| next_service_date | DATE        |                  | Date of next scheduled service                                                           |
-| is_active         | BOOLEAN     | NOT NULL         | Whether the car is in the active rental pool                                             |
-| created_at        | TIMESTAMP   | NOT NULL         | Record creation timestamp                                                                |
-| updated_at        | TIMESTAMP   | NOT NULL         | Record last-update timestamp                                                             |
 
 ---
 

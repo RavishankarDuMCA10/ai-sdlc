@@ -68,15 +68,16 @@ The tables required for this feature are defined and documented in:
 
 Key tables involved:
 
-| Table                      | Role in this feature                                                                  |
-|----------------------------|---------------------------------------------------------------------------------------|
-| `cars`                     | Source of available vehicles; status is updated on assignment/unassignment            |
-| `bookings`                 | The booking a car is assigned to; provides rental period and pickup location          |
-| `car_booking_assignments`  | Records the assignment relationship between a car and a booking                       |
-| `car_status_history`       | Audit trail of car status changes triggered by assignment and unassignment actions    |
-| `locations`                | Used to match car current location with booking pickup location                       |
-| `users`                    | Records which operations staff member performed the assignment                        |
-| `customers`                | Links bookings to customer information; owned by the Booking system                  |
+| Table                      | Role in this feature                                                                         |
+|----------------------------|----------------------------------------------------------------------------------------------|
+| `cars`                     | Source of available vehicles; status is updated on assignment/unassignment. Defined in [database-design-car-management.md](./database-design-car-management.md) |
+| `car_service_schedules`    | Used to detect service-period conflicts when filtering eligible cars. Defined in [database-design-car-management.md](./database-design-car-management.md) |
+| `bookings`                 | The booking a car is assigned to; provides rental period and pickup location                  |
+| `car_booking_assignments`  | Records the assignment relationship between a car and a booking                               |
+| `car_status_history`       | Audit trail of car status changes triggered by assignment and unassignment actions            |
+| `locations`                | Provides pickup and return location records referenced by bookings                            |
+| `users`                    | Records which operations staff member performed the assignment                                |
+| `customers`                | Links bookings to customer information; owned by the Booking system                           |
 
 ---
 
@@ -318,7 +319,9 @@ FUNCTION getAvailableCarsForBooking(bookingId, requestingUserId):
     SELECT cars
     WHERE cars.is_active = TRUE
       AND cars.status = "available"
-      AND cars.location_id = booking.pickup_location_id
+      AND LOWER(cars.current_location) = LOWER(booking.pickup_location_name)
+      /* Note: location matching is case-insensitive. The application layer
+         must normalize location names before storage to avoid mismatches. */
       AND NOT EXISTS (
         SELECT 1 FROM car_booking_assignments cba
         JOIN bookings b ON b.id = cba.booking_id
@@ -329,12 +332,13 @@ FUNCTION getAvailableCarsForBooking(bookingId, requestingUserId):
       )
       AND NOT EXISTS (
         /* Exclude cars blocked by service schedules during the booking period.
-           The service_schedules table is defined by US-CM-04 (Manage Service and
-           Maintenance Schedules) and is referenced here for completeness. */
-        SELECT 1 FROM service_schedules ss
-        WHERE ss.car_id = cars.id
-          AND ss.scheduled_start < booking.end_date
-          AND ss.scheduled_end > booking.start_date
+           car_service_schedules is defined in database-design-car-management.md (US-CM-04).
+           The service end is approximated as scheduled_date + estimated_downtime_hours. */
+        SELECT 1 FROM car_service_schedules css
+        WHERE css.car_id = cars.id
+          AND css.status IN ("scheduled", "in_progress")
+          AND css.scheduled_date < booking.end_date
+          AND (css.scheduled_date + INTERVAL css.estimated_downtime_hours HOUR) > booking.start_date
       )
   )
 
