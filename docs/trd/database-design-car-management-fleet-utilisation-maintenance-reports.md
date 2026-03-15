@@ -1,50 +1,68 @@
 # Database Design — Car Management: Fleet Utilisation and Maintenance Reports
 
+## Overview
+
+This document describes the database design required to support **US-CM-09: View Fleet Utilisation and Maintenance Reports**.
+
+> **Note:** The `cars`, `locations`, `users`, `customers`, `bookings`, `car_booking_assignments`, `car_status_history`, `car_service_reminder_notifications`, `pickup_record`, `pickup_photo`, `pickup_signature`, and `car_service_schedules` tables are part of the consolidated Car Management database design and are defined in:
+> - 📄 [database-design-car-management-assign-car-to-booking.md](./database-design-car-management-assign-car-to-booking.md) — defines `locations`, `users`, `customers`, `bookings`, `car_booking_assignments`, `car_status_history`
+> - 📄 [database-design-car-pickup-logistics.md](./database-design-car-pickup-logistics.md) — defines `pickup_record`, `pickup_photo`, `pickup_signature`
+> - 📄 [database-design-car-management-service-maintenance.md](./database-design-car-management-service-maintenance.md) — defines `car_service_reminder_notifications` and additional columns on `car_service_schedules`
+>
+> This document references those tables but does not redefine them. It documents **additional columns** required on `car_service_schedules` to support maintenance cost reporting, and introduces the new `report_export_log` table.
+
+---
+
 ## Tables
 
-### `maintenance_activity`
+### `car_service_schedules` — Additional Columns
 
-Stores the record of each maintenance or service activity carried out on a vehicle, including cost information required for the Maintenance Report.
+The base table and its US-CM-04 additions are defined in 📄 [database-design-car-management-service-maintenance.md](./database-design-car-management-service-maintenance.md). The following **additional columns** are required to support the Maintenance Activity and Cost Report (US-CM-09):
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | UUID | PRIMARY KEY | Unique identifier for the maintenance activity record |
-| `car_id` | UUID | NOT NULL, FK → `car.id` | The vehicle this activity belongs to |
-| `service_type` | ENUM(`routine_service`, `tyre_change`, `inspection`, `repair`, `other`) | NOT NULL | Category of the maintenance activity |
-| `scheduled_date` | DATE | NOT NULL | Date the activity was scheduled to occur |
-| `start_datetime` | TIMESTAMP | NULL | Actual start date and time of the activity |
-| `end_datetime` | TIMESTAMP | NULL | Actual completion date and time of the activity |
-| `status` | ENUM(`scheduled`, `in_progress`, `completed`, `cancelled`) | NOT NULL | Current status of the activity |
-| `service_provider` | VARCHAR(255) | NULL | Name or identifier of the service provider |
-| `cost_amount` | DECIMAL(12, 2) | NULL | Cost incurred for this activity |
-| `cost_currency` | CHAR(3) | NULL | ISO 4217 currency code (e.g., `USD`, `GBP`) |
-| `notes` | TEXT | NULL | Free-text notes or description of work performed |
-| `created_by` | UUID | NOT NULL, FK → `user.id` | User who created the record |
-| `created_at` | TIMESTAMP | NOT NULL | Record creation timestamp |
-| `updated_at` | TIMESTAMP | NOT NULL | Record last updated timestamp |
+| `cost_amount` | DECIMAL(12, 2) | NULL | Total cost incurred for this service activity; populated when the activity is completed |
+| `cost_currency` | CHAR(3) | NULL | ISO 4217 currency code for the cost (e.g., `USD`, `GBP`); required when `cost_amount` is set |
 
-**Indexes:**
-- `(car_id)` — for per-vehicle lookups
-- `(status)` — for filtering active/completed activities
-- `(scheduled_date)`, `(start_datetime)`, `(end_datetime)` — for date-range queries used in downtime and maintenance reports
+These columns extend the existing full column listing from the service-maintenance TRD:
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | UUID | PK, NOT NULL | Unique identifier |
+| `car_id` | UUID | FK → `cars.id`, NOT NULL | The car this schedule belongs to |
+| `service_type` | VARCHAR(100) | NOT NULL | Type of service (e.g., `routine service`, `tyre change`, `inspection`, `oil change`, `brake service`, `other`) |
+| `scheduled_date` | DATE | NOT NULL | Date on which the service is planned to begin |
+| `estimated_downtime_hours` | DECIMAL(5,2) | | Estimated hours the car will be unavailable |
+| `service_provider` | VARCHAR(255) | | Name of the service provider or workshop |
+| `status` | VARCHAR(20) | NOT NULL | One of: `scheduled`, `in_progress`, `completed`, `cancelled` |
+| `notes` | TEXT | | Additional notes or instructions |
+| `completed_at` | TIMESTAMP | | Timestamp when the service was marked complete |
+| `actual_completion_date` | DATE | | *(US-CM-04)* The date the service was actually completed |
+| `next_scheduled_date` | DATE | | *(US-CM-04)* Recalculated next service date of the same type |
+| `reminder_sent` | BOOLEAN | NOT NULL, DEFAULT FALSE | *(US-CM-04)* Whether the 7-day reminder has been sent |
+| `created_by` | UUID | FK → `users.id`, NOT NULL | *(US-CM-04)* Fleet manager who created the entry |
+| `cost_amount` | DECIMAL(12, 2) | NULL | *(US-CM-09)* Cost incurred for this activity |
+| `cost_currency` | CHAR(3) | NULL | *(US-CM-09)* ISO 4217 currency code for the cost |
+| `created_at` | TIMESTAMP | NOT NULL | Record creation timestamp (UTC) |
+| `updated_at` | TIMESTAMP | NOT NULL | Last update timestamp (UTC) |
 
 ---
 
 ### `report_export_log`
 
-Tracks each export request generated by a fleet manager, enabling audit history and re-download of previously generated files.
+New table introduced by US-CM-09. Tracks each export request generated by a fleet manager, enabling audit history and re-download of previously generated files.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | UUID | PRIMARY KEY | Unique identifier for the export request |
-| `report_type` | ENUM(`utilisation`, `downtime`, `maintenance`) | NOT NULL | The type of report that was exported |
+| `id` | UUID | PK, NOT NULL | Unique identifier for the export request |
+| `report_type` | VARCHAR(20) | NOT NULL | Type of report exported: `utilisation`, `downtime`, or `maintenance` |
 | `date_from` | DATE | NOT NULL | Start of the date range applied to the report |
 | `date_to` | DATE | NOT NULL | End of the date range applied to the report |
-| `car_id` | UUID | NULL, FK → `car.id` | When set, the export was scoped to a single vehicle |
-| `export_format` | ENUM(`csv`, `pdf`) | NOT NULL | File format of the export |
-| `status` | ENUM(`pending`, `completed`, `failed`) | NOT NULL | Processing status of the export job |
-| `file_url` | VARCHAR(1024) | NULL | Presigned or relative URL to the generated file |
-| `generated_by` | UUID | NOT NULL, FK → `user.id` | Fleet manager who triggered the export |
+| `car_id` | UUID | NULL, FK → `cars.id` | When set, the export was scoped to a single vehicle |
+| `export_format` | VARCHAR(5) | NOT NULL | File format of the export: `csv` or `pdf` |
+| `status` | VARCHAR(10) | NOT NULL | Processing status: `pending`, `completed`, or `failed` |
+| `file_url` | VARCHAR(1024) | NULL | Presigned or relative URL to the generated file; populated on completion |
+| `generated_by` | UUID | NOT NULL, FK → `users.id` | Fleet manager who triggered the export |
 | `generated_at` | TIMESTAMP | NOT NULL | Timestamp when the export was requested |
 | `completed_at` | TIMESTAMP | NULL | Timestamp when the file became available |
 
@@ -58,71 +76,98 @@ Tracks each export request generated by a fleet manager, enabling audit history 
 
 ```mermaid
 erDiagram
-    car {
-        UUID id PK
-        VARCHAR licence_plate
-        VARCHAR make
-        VARCHAR model
-        INT year
-        ENUM status
+    CARS {
+        UUID        id              PK
+        VARCHAR     licence_plate
+        VARCHAR     make
+        VARCHAR     model
+        SMALLINT    year
+        VARCHAR     status
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
     }
 
-    user {
-        UUID id PK
-        VARCHAR username
-        VARCHAR role
+    USERS {
+        UUID        id          PK
+        VARCHAR     username
+        VARCHAR     role
+        BOOLEAN     is_active
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
     }
 
-    rental_booking {
-        UUID id PK
-        UUID car_id FK
-        DATE rental_start
-        DATE rental_end
-        ENUM status
+    BOOKINGS {
+        UUID        id                  PK
+        UUID        customer_id         FK
+        UUID        pickup_location_id  FK
+        UUID        return_location_id  FK
+        DATE        start_date
+        DATE        end_date
+        VARCHAR     status
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
     }
 
-    maintenance_activity {
-        UUID id PK
-        UUID car_id FK
-        ENUM service_type
-        DATE scheduled_date
-        TIMESTAMP start_datetime
-        TIMESTAMP end_datetime
-        ENUM status
-        DECIMAL cost_amount
-        CHAR cost_currency
-        UUID created_by FK
-        TIMESTAMP created_at
-        TIMESTAMP updated_at
+    CAR_SERVICE_SCHEDULES {
+        UUID        id                      PK
+        UUID        car_id                  FK
+        VARCHAR     service_type
+        DATE        scheduled_date
+        DECIMAL     estimated_downtime_hours
+        VARCHAR     service_provider
+        VARCHAR     status
+        TEXT        notes
+        TIMESTAMP   completed_at
+        DATE        actual_completion_date
+        DATE        next_scheduled_date
+        BOOLEAN     reminder_sent
+        UUID        created_by              FK
+        DECIMAL     cost_amount
+        CHAR        cost_currency
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
     }
 
-    report_export_log {
-        UUID id PK
-        ENUM report_type
-        DATE date_from
-        DATE date_to
-        UUID car_id FK
-        ENUM export_format
-        ENUM status
-        VARCHAR file_url
-        UUID generated_by FK
-        TIMESTAMP generated_at
-        TIMESTAMP completed_at
+    REPORT_EXPORT_LOG {
+        UUID        id              PK
+        VARCHAR     report_type
+        DATE        date_from
+        DATE        date_to
+        UUID        car_id          FK
+        VARCHAR     export_format
+        VARCHAR     status
+        VARCHAR     file_url
+        UUID        generated_by    FK
+        TIMESTAMP   generated_at
+        TIMESTAMP   completed_at
     }
 
-    car ||--o{ rental_booking : "assigned to"
-    car ||--o{ maintenance_activity : "subject of"
-    car ||--o{ report_export_log : "scoped to (optional)"
-    user ||--o{ maintenance_activity : "created by"
-    user ||--o{ report_export_log : "generated by"
+    CAR_BOOKING_ASSIGNMENTS {
+        UUID        id              PK
+        UUID        booking_id      FK
+        UUID        car_id          FK
+        UUID        assigned_by     FK
+        BOOLEAN     is_current
+        TIMESTAMP   assigned_at
+        TIMESTAMP   unassigned_at
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
+    }
+
+    CARS                ||--o{  CAR_BOOKING_ASSIGNMENTS   : "assigned via"
+    BOOKINGS            ||--o{  CAR_BOOKING_ASSIGNMENTS   : "fulfilled by"
+    CARS                ||--o{  CAR_SERVICE_SCHEDULES     : "has"
+    CARS                ||--o{  REPORT_EXPORT_LOG         : "scoped to (optional)"
+    USERS               ||--o{  CAR_SERVICE_SCHEDULES     : "created by"
+    USERS               ||--o{  REPORT_EXPORT_LOG         : "generated by"
 ```
 
 ---
 
 ## Notes
 
-- The **Utilisation Report** derives its data from the `rental_booking` table. Utilisation rate per vehicle is calculated as:
+- The **Utilisation Report** derives its data from the `bookings` table (joined with `car_booking_assignments` to determine which car was rented). Utilisation rate per vehicle is calculated as:
   `utilisation_rate = (total rented days within period) / (total days in period) × 100`
-- The **Downtime Report** derives its data from the `maintenance_activity` table (using `start_datetime` and `end_datetime` where `status` is `in_progress` or `completed`) and any `rental_booking` record with status `unavailable`.
-- The **Maintenance Report** derives its data entirely from `maintenance_activity`.
-- The `car` and `rental_booking` tables are defined in the car management and booking modules respectively; they are referenced here but not re-defined.
+- The **Downtime Report** derives its data from `car_service_schedules` (using `scheduled_date` and `estimated_downtime_hours`/`actual_completion_date` where `status` is `in_progress` or `completed`) and `car_status_history` (periods where `new_status` is `unavailable`).
+- The **Maintenance Activity and Cost Report** derives its data from `car_service_schedules`, using the `cost_amount` and `cost_currency` columns introduced by this TRD.
+- The `cars`, `bookings`, `users`, and `car_service_schedules` tables are defined in the consolidated Car Management database design documents listed above; they are referenced here but not redefined.

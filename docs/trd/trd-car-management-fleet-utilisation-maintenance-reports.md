@@ -73,10 +73,10 @@ The following tables are required to support this feature. For full schema detai
 
 | Table | Purpose |
 |---|---|
-| `maintenance_activity` | Records each service or maintenance event per vehicle, including cost, dates, and status |
-| `report_export_log` | Persists each export request, its parameters, processing status, and resulting file URL |
+| `car_service_schedules` (additional columns) | Extended with `cost_amount` and `cost_currency` columns to support maintenance cost reporting; base table defined in the consolidated Car Management design |
+| `report_export_log` | New table — persists each export request, its parameters, processing status, and resulting file URL |
 
-The **Utilisation** and **Downtime** reports also read from the `rental_booking` table (defined in the booking module) and the `car` table (defined in the car management module).
+The **Utilisation Report** reads from the `bookings` and `car_booking_assignments` tables. The **Downtime Report** reads from `car_service_schedules` and `car_status_history`. The **Maintenance Report** reads from `car_service_schedules`. All of these tables are defined in the consolidated Car Management database design documents linked from the database design file above.
 
 ---
 
@@ -222,7 +222,7 @@ All endpoints are prefixed with `/api/v1`. All requests must include a valid JWT
       "cost_currency": "USD",
       "activities": [
         {
-          "activity_id": "uuid",
+          "schedule_id": "550e8400-e29b-41d4-a716-446655440000",
           "service_type": "routine_service",
           "scheduled_date": "2025-01-15",
           "completed_date": "2025-01-15",
@@ -348,8 +348,10 @@ All endpoints are prefixed with `/api/v1`. All requests must include a valid JWT
 period_days = date_to - date_from + 1 (inclusive)
 
 FOR each car:
-  rented_days = SUM of days where rental_booking.status = 'active' OR 'completed'
-                AND the booking period overlaps with [date_from, date_to]
+  rented_days = SUM of days where bookings.status IN ('active', 'completed')
+                AND car_booking_assignments.car_id = car.id
+                AND car_booking_assignments.is_current = TRUE
+                AND the booking period (start_date, end_date) overlaps with [date_from, date_to]
   utilisation_rate_percent = (rented_days / period_days) * 100
 ```
 
@@ -357,10 +359,13 @@ FOR each car:
 
 ```
 FOR each car:
-  in_service_days = SUM of days where maintenance_activity.status IN ('in_progress', 'completed')
-                    AND the activity period overlaps with [date_from, date_to]
-  unavailable_days = SUM of days where car was in status 'unavailable' or 'unavailable_inspection'
-                     AND the period overlaps with [date_from, date_to]
+  in_service_days = SUM of days where car_service_schedules.status IN ('in_progress', 'completed')
+                    AND car_service_schedules.car_id = car.id
+                    AND the service period (scheduled_date to actual_completion_date) overlaps with [date_from, date_to]
+  unavailable_days = SUM of days derived from car_status_history
+                     WHERE car_status_history.new_status IN ('unavailable')
+                     AND car_status_history.car_id = car.id
+                     AND the status period overlaps with [date_from, date_to]
   downtime_days = in_service_days + unavailable_days
 ```
 
@@ -379,7 +384,7 @@ sequenceDiagram
     Frontend->>ReportAPI: GET /api/v1/reports/{type}?date_from=...&date_to=...
     ReportAPI->>ReportAPI: Validates JWT and fleet_manager role
     ReportAPI->>ReportAPI: Validates query parameters
-    ReportAPI->>Database: Query rental_booking / maintenance_activity for date range
+    ReportAPI->>Database: Query bookings / car_booking_assignments / car_service_schedules / car_status_history for date range
     Database-->>ReportAPI: Raw records
     ReportAPI->>ReportAPI: Calculates utilisation / downtime / maintenance totals per vehicle
     ReportAPI-->>Frontend: 200 OK with report results
