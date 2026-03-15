@@ -340,3 +340,10 @@ Without a dedicated marketing module in the car rental system, the team faces th
 - Maintain a published average customer review rating of **4.0 stars or above** on the customer-facing platform.
 - Deliver marketing performance dashboards with data freshness no older than **24 hours** at all times.
 - Increase cross-sell conversion rate (car sales customers who complete a rental booking) by **10%** within 12 months of launch.
+
+
+---
+
+## AI Usage Disclaimer
+
+*This document was generated with the assistance of artificial intelligence and should be reviewed by a human for accuracy and completeness.*

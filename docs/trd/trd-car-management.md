@@ -446,3 +446,10 @@ sequenceDiagram
 ## Non-functional Requirements
 
 *(To be defined)*
+
+
+---
+
+## AI Usage Disclaimer
+
+*This document was generated with the assistance of artificial intelligence and should be reviewed by a human for accuracy and completeness.*
