@@ -300,3 +300,10 @@ The system must provide a reporting section with the following reports: vehicle 
 - **Pickup/return documentation compliance**: 95% of pickup and return events completed with required photos and signatures within the first 2 months of operation.
 - **Incident recording**: 100% of reported incidents logged in the system within 24 hours of the event, from the first month of operation.
 - **Report adoption**: Fleet managers generate at least one utilisation or maintenance report per week within 6 weeks of go-live.
+
+
+---
+
+## AI Usage Disclaimer
+
+*This document was generated with the assistance of artificial intelligence and should be reviewed by a human for accuracy and completeness.*

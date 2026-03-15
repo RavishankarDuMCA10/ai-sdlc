@@ -275,3 +275,10 @@ The car-rental line of business is launching imminently. Financial controls must
 - **Accounting software sync reliability ≥ 99.9%** – fewer than 0.1% of transactions fail to sync within the agreed time window over any 30-day period.
 - **Report generation time ≤ 10 seconds** – all standard financial reports are generated within 10 seconds for any date range up to 12 months.
 - **100% audit-trail coverage** – every financial transaction, approval, adjustment, and deletion is captured in the audit log with no gaps.
+
+
+---
+
+## AI Usage Disclaimer
+
+*This document was generated with the assistance of artificial intelligence and should be reviewed by a human for accuracy and completeness.*
