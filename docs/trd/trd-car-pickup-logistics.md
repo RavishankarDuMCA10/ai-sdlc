@@ -63,7 +63,14 @@ The requirement defines a structured pickup workflow in which operations staff o
 
 ### Database Design
 
-The following tables are required for this feature. For full column definitions, data types, constraints, and relationships, refer to [database-design-car-pickup-logistics.md](./database-design-car-pickup-logistics.md).
+This feature introduces three new tables. The existing shared tables (`cars`, `bookings`, `users`, `customers`, `locations`, `car_booking_assignments`, `car_status_history`, `car_service_schedules`, `car_service_reminder_notifications`) are defined in the consolidated Car Management database designs and are referenced but not redefined here.
+
+**Consolidated designs (existing tables):**
+- 📄 [database-design-car-management.md](./database-design-car-management.md) — `cars`, `car_service_schedules`
+- 📄 [database-design-car-management-assign-car-to-booking.md](./database-design-car-management-assign-car-to-booking.md) — `locations`, `users`, `customers`, `bookings`, `car_booking_assignments`, `car_status_history`
+- 📄 [database-design-car-management-service-maintenance.md](./database-design-car-management-service-maintenance.md) — `car_service_reminder_notifications`
+
+**New tables introduced by this feature** (full definitions in [database-design-car-pickup-logistics.md](./database-design-car-pickup-logistics.md)):
 
 | Table | Purpose |
 |---|---|

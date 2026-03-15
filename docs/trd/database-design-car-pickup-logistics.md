@@ -1,20 +1,114 @@
 # Database Design – Car Pickup Logistics
 
-## Entity Relationship Overview
+## Overview
 
-The pickup logistics feature introduces three tables: `pickup_record`, `pickup_photo`, and `pickup_signature`. They relate to the existing `bookings` and `cars` tables, and reference the `users` table for audit purposes.
+This document describes the database tables required to support **US-CM-05: Manage Car Pickup Logistics**.
 
-```
-bookings ──< pickup_record >── cars
-                  │
-                  ├──< pickup_photo
-                  │
-                  └──── pickup_signature
+> **Note:** The `cars`, `locations`, `users`, `customers`, `bookings`, `car_booking_assignments`, `car_status_history`, `car_service_reminder_notifications`, and `car_service_schedules` tables are part of the consolidated Car Management database design and are defined in:
+> - 📄 [database-design-car-management.md](./database-design-car-management.md) — defines `cars` and `car_service_schedules`
+> - 📄 [database-design-car-management-assign-car-to-booking.md](./database-design-car-management-assign-car-to-booking.md) — defines `locations`, `users`, `customers`, `bookings`, `car_booking_assignments`, `car_status_history`
+> - 📄 [database-design-car-management-service-maintenance.md](./database-design-car-management-service-maintenance.md) — defines `car_service_reminder_notifications` and additional columns on `car_service_schedules`
+>
+> This document references those tables but does not redefine them. It introduces only the three new tables specific to the pickup workflow: `pickup_record`, `pickup_photo`, and `pickup_signature`.
+
+---
+
+## Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    CARS {
+        UUID        id              PK
+        VARCHAR     licence_plate
+        VARCHAR     status
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
+    }
+
+    BOOKINGS {
+        UUID        id                  PK
+        UUID        customer_id         FK
+        UUID        pickup_location_id  FK
+        UUID        return_location_id  FK
+        DATE        start_date
+        DATE        end_date
+        VARCHAR     status
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
+    }
+
+    USERS {
+        UUID        id          PK
+        VARCHAR     username
+        VARCHAR     role
+        BOOLEAN     is_active
+        TIMESTAMP   created_at
+        TIMESTAMP   updated_at
+    }
+
+    PICKUP_RECORD {
+        UUID        id                  PK
+        UUID        booking_id          FK
+        UUID        car_id              FK
+        TIMESTAMP   pickup_datetime
+        VARCHAR     pickup_location
+        VARCHAR     fuel_level
+        INTEGER     odometer_reading
+        TEXT        condition_notes
+        BOOLEAN     damage_found
+        UUID        signature_id        FK
+        VARCHAR     status
+        UUID        created_by          FK
+        TIMESTAMP   created_at
+        TIMESTAMP   confirmed_at
+        UUID        confirmed_by        FK
+    }
+
+    PICKUP_PHOTO {
+        UUID        id                  PK
+        UUID        pickup_record_id    FK
+        VARCHAR     storage_reference
+        VARCHAR     file_name
+        INTEGER     file_size_bytes
+        VARCHAR     mime_type
+        TIMESTAMP   uploaded_at
+        UUID        uploaded_by         FK
+    }
+
+    PICKUP_SIGNATURE {
+        UUID        id                  PK
+        VARCHAR     storage_reference
+        TIMESTAMP   captured_at
+        UUID        captured_by         FK
+    }
+
+    BOOKINGS            ||--o|   PICKUP_RECORD   : "has pickup"
+    CARS                ||--o{  PICKUP_RECORD    : "picked up via"
+    USERS               ||--o{  PICKUP_RECORD    : "created_by / confirmed_by"
+    PICKUP_RECORD       ||--o{  PICKUP_PHOTO     : "has photos"
+    PICKUP_RECORD       ||--o|  PICKUP_SIGNATURE : "has signature"
+    USERS               ||--o{  PICKUP_PHOTO     : "uploaded_by"
+    USERS               ||--o{  PICKUP_SIGNATURE : "captured_by"
 ```
 
 ---
 
-## Tables
+## Table Descriptions
+
+### `cars`, `bookings`, and `users`
+
+These tables are defined in the consolidated Car Management database design:
+- 📄 [database-design-car-management.md](./database-design-car-management.md) — `cars`
+- 📄 [database-design-car-management-assign-car-to-booking.md](./database-design-car-management-assign-car-to-booking.md) — `bookings`, `users`
+
+Key points relevant to this feature:
+- `cars.status` is updated to `rented` when a pickup is confirmed.
+- `bookings.status` is updated to `active` when a pickup is confirmed. The booking must have status `assigned` (i.e., a car has been assigned via `car_booking_assignments`) before a pickup can be initiated.
+- `users.role` must be `operations_staff` or `field_agent` to initiate or confirm a pickup record.
+
+---
+
+## New Tables
 
 ### `pickup_record`
 
