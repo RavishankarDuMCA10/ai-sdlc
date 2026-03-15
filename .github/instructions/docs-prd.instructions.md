@@ -52,3 +52,6 @@ For PRD (product requirement document), it must contain the following items (in 
       - Increase singup conversion rate by 15%
       - Reduce drop-off rate by 10%
       - Improve task completion time 20%
+  - AI usage disclaimer
+    Add a static string as follows:
+    *This document was generated with the assistance of artificial intelligence and should be reviewed by a human for accuracy and completeness.*
