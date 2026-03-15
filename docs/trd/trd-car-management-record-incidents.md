@@ -39,8 +39,8 @@ The requirement states that operations staff must be able to log incidents (acci
 - REST API for retrieving incident records by booking and by car.
 - REST API for uploading attachments (photos and documents) against an incident.
 - REST API for fleet managers to clear a reviewed incident and restore car availability.
-- Automatic update of the car's status to `UNAVAILABLE_INCIDENT_REVIEW` upon incident creation.
-- Automatic update of the car's status to `AVAILABLE` when a fleet manager clears the incident.
+- Automatic update of the car's status to `unavailable_incident_review` upon incident creation.
+- Automatic update of the car's status to `available` when a fleet manager clears the incident.
 - Input validation for all incident fields (type, datetime, location, description).
 - File type and size validation for attachments.
 - Role-based access control: operations staff create incidents; fleet managers clear them.
@@ -78,7 +78,7 @@ New tables introduced:
 
 ### Frontend
 
-- The incident log form must be accessible from the **Active Booking Detail** page via a clearly labelled "Log Incident" button, visible only when the booking status is `ACTIVE`.
+- The incident log form must be accessible from the **Active Booking Detail** page via a clearly labelled "Log Incident" button, visible only when the booking status is `active`.
 - All field-level validation errors must be displayed **inline**, directly beneath the relevant input field.
 - The file upload component must:
   - Accept `jpg`, `jpeg`, `png`, and `pdf` files only.
@@ -107,12 +107,12 @@ All endpoints are prefixed with `/api/v1` and require a valid JWT bearer token i
 
 Creates a new incident record for an active booking.
 
-- **Path parameter:** `bookingId` — integer, the ID of the booking.
+- **Path parameter:** `bookingId` — UUID, the ID of the booking.
 - **Request body (JSON):**
 
   | Field | Type | Required | Validation |
   |---|---|---|---|
-  | `incidentType` | string | Yes | Must be one of: `ACCIDENT`, `BREAKDOWN`, `OTHER` |
+  | `incidentType` | string | Yes | Must be one of: `accident`, `breakdown`, `other` |
   | `incidentDatetime` | string (ISO 8601) | Yes | Must be a valid datetime, not in the future |
   | `location` | string | Yes | 1–500 characters |
   | `description` | string | Yes | 1–5000 characters |
@@ -121,20 +121,20 @@ Creates a new incident record for an active booking.
 
   ```json
   {
-    "id": 42,
-    "bookingId": 101,
-    "carId": 7,
-    "incidentType": "BREAKDOWN",
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "bookingId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "carId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "incidentType": "breakdown",
     "incidentDatetime": "2026-03-14T10:30:00Z",
     "location": "Motorway M1, Junction 15",
     "description": "Engine failure, car towed.",
-    "reportedBy": 5,
-    "status": "OPEN",
+    "reportedBy": "d4e5f6a7-b8c9-0123-defa-234567890123",
+    "status": "open",
     "createdAt": "2026-03-14T11:00:00Z"
   }
   ```
 
-- **Error responses:** `400 Bad Request` (validation failure), `403 Forbidden` (insufficient role), `404 Not Found` (booking not found), `409 Conflict` (booking is not in `ACTIVE` status).
+- **Error responses:** `400 Bad Request` (validation failure), `403 Forbidden` (insufficient role), `404 Not Found` (booking not found), `409 Conflict` (booking is not in `active` status).
 
 ---
 
@@ -144,17 +144,17 @@ Creates a new incident record for an active booking.
 
 Returns all incidents linked to the specified booking.
 
-- **Path parameter:** `bookingId` — integer.
+- **Path parameter:** `bookingId` — UUID, the ID of the booking.
 - **Response `200 OK`:**
 
   ```json
   [
     {
-      "id": 42,
-      "incidentType": "BREAKDOWN",
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "incidentType": "breakdown",
       "incidentDatetime": "2026-03-14T10:30:00Z",
       "location": "Motorway M1, Junction 15",
-      "status": "OPEN"
+      "status": "open"
     }
   ]
   ```
@@ -167,30 +167,30 @@ Returns all incidents linked to the specified booking.
 
 Returns the full details of a single incident, including attachments.
 
-- **Path parameter:** `incidentId` — integer.
+- **Path parameter:** `incidentId` — UUID.
 - **Response `200 OK`:**
 
   ```json
   {
-    "id": 42,
-    "bookingId": 101,
-    "carId": 7,
-    "incidentType": "BREAKDOWN",
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "bookingId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "carId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "incidentType": "breakdown",
     "incidentDatetime": "2026-03-14T10:30:00Z",
     "location": "Motorway M1, Junction 15",
     "description": "Engine failure, car towed.",
-    "reportedBy": 5,
-    "status": "OPEN",
+    "reportedBy": "d4e5f6a7-b8c9-0123-defa-234567890123",
+    "status": "open",
     "fleetManagerNotes": null,
     "clearedBy": null,
     "clearedAt": null,
     "attachments": [
       {
-        "id": 3,
+        "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
         "fileName": "breakdown-photo.jpg",
         "fileType": "jpg",
         "fileSizeBytes": 204800,
-        "fileUrl": "https://storage.example.com/incidents/42/breakdown-photo.jpg",
+        "storageReference": "incidents/a1b2c3d4-e5f6-7890-abcd-ef1234567890/breakdown-photo.jpg",
         "uploadedAt": "2026-03-14T11:05:00Z"
       }
     ],
@@ -207,7 +207,7 @@ Returns the full details of a single incident, including attachments.
 
 Uploads one or more files attached to an incident record.
 
-- **Path parameter:** `incidentId` — integer.
+- **Path parameter:** `incidentId` — UUID.
 - **Request body:** `multipart/form-data` with one or more file parts named `files`.
 - **Validation:**
   - Allowed MIME types: `image/jpeg`, `image/png`, `application/pdf`.
@@ -218,11 +218,11 @@ Uploads one or more files attached to an incident record.
   ```json
   [
     {
-      "id": 3,
+      "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
       "fileName": "breakdown-photo.jpg",
       "fileType": "jpg",
       "fileSizeBytes": 204800,
-      "fileUrl": "https://storage.example.com/incidents/42/breakdown-photo.jpg",
+      "storageReference": "incidents/a1b2c3d4-e5f6-7890-abcd-ef1234567890/breakdown-photo.jpg",
       "uploadedAt": "2026-03-14T11:05:00Z"
     }
   ]
@@ -238,9 +238,9 @@ Uploads one or more files attached to an incident record.
 
 Returns the full incident history for a car.
 
-- **Path parameter:** `carId` — integer.
+- **Path parameter:** `carId` — UUID.
 - **Query parameters:**
-  - `status` (optional) — filter by incident status: `OPEN`, `UNDER_REVIEW`, or `CLEARED`.
+  - `status` (optional) — filter by incident status: `open`, `under_review`, or `cleared`.
   - `page` (optional, default `1`) — page number for pagination.
   - `pageSize` (optional, default `20`, max `100`) — results per page.
 - **Response `200 OK`:**
@@ -252,11 +252,11 @@ Returns the full incident history for a car.
     "pageSize": 20,
     "items": [
       {
-        "id": 42,
-        "bookingId": 101,
-        "incidentType": "BREAKDOWN",
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "bookingId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "incidentType": "breakdown",
         "incidentDatetime": "2026-03-14T10:30:00Z",
-        "status": "OPEN"
+        "status": "open"
       }
     ]
   }
@@ -268,9 +268,9 @@ Returns the full incident history for a car.
 
 **`PATCH /api/v1/incidents/{incidentId}/clear`**
 
-Marks an incident as cleared after fleet manager review. This also updates the associated car's status to `AVAILABLE`.
+Marks an incident as cleared after fleet manager review. This also updates the associated car's status to `available`.
 
-- **Path parameter:** `incidentId` — integer.
+- **Path parameter:** `incidentId` — UUID.
 - **Request body (JSON):**
 
   | Field | Type | Required | Validation |
@@ -281,15 +281,15 @@ Marks an incident as cleared after fleet manager review. This also updates the a
 
   ```json
   {
-    "id": 42,
-    "status": "CLEARED",
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "status": "cleared",
     "fleetManagerNotes": "No structural damage found after inspection.",
-    "clearedBy": 12,
+    "clearedBy": "f6a7b8c9-d0e1-2345-fabc-456789012345",
     "clearedAt": "2026-03-15T09:00:00Z"
   }
   ```
 
-- **Error responses:** `403 Forbidden` (caller does not have Fleet Manager role), `404 Not Found`, `409 Conflict` (incident is already `CLEARED`).
+- **Error responses:** `403 Forbidden` (caller does not have Fleet Manager role), `404 Not Found`, `409 Conflict` (incident is already `cleared`).
 
 ---
 
@@ -297,7 +297,7 @@ Marks an incident as cleared after fleet manager review. This also updates the a
 
 | Field | Rule |
 |---|---|
-| `incidentType` | Must be exactly one of the enum values: `ACCIDENT`, `BREAKDOWN`, `OTHER`. Case-sensitive. |
+| `incidentType` | Must be exactly one of the enum values: `accident`, `breakdown`, `other`. Case-sensitive. |
 | `incidentDatetime` | Must be a valid ISO 8601 datetime string. Must not exceed the server clock time by more than 5 minutes, to allow for minor client–server clock drift while preventing clearly future-dated entries. |
 | `location` | Non-empty string, maximum 500 characters. HTML tags must be stripped. |
 | `description` | Non-empty string, maximum 5000 characters. HTML tags must be stripped. |
@@ -319,13 +319,13 @@ sequenceDiagram
 
     OpsStaff->>FE: Opens active booking, clicks "Log Incident"
     FE->>API: POST /api/v1/bookings/{bookingId}/incidents
-    API->>DB: Validate bookingId exists and status = ACTIVE
+    API->>DB: Validate bookingId exists and status = active
     alt Booking not active or not found
         API-->>FE: 404 / 409 error response
         FE-->>OpsStaff: Show error message
     else Booking is active
-        API->>DB: INSERT into incidents (status = OPEN)
-        API->>DB: UPDATE cars SET status = UNAVAILABLE_INCIDENT_REVIEW WHERE id = carId
+        API->>DB: INSERT into incidents (status = open)
+        API->>DB: UPDATE cars SET status = unavailable_incident_review WHERE id = carId
         API-->>FE: 201 Created with incident payload
         FE-->>OpsStaff: Show success, incident listed under booking
     end
@@ -365,13 +365,13 @@ sequenceDiagram
         API-->>FE: 403 Forbidden
         FE-->>FleetMgr: Show access denied message
     else Caller is Fleet Manager
-        API->>DB: Fetch incident, check status != CLEARED
+        API->>DB: Fetch incident, check status != cleared
         alt Incident already cleared
             API-->>FE: 409 Conflict
             FE-->>FleetMgr: Show "Already cleared" message
         else Incident is open or under review
-            API->>DB: UPDATE incidents SET status = CLEARED, cleared_by, cleared_at, notes
-            API->>DB: UPDATE cars SET status = AVAILABLE WHERE id = carId
+            API->>DB: UPDATE incidents SET status = cleared, cleared_by, cleared_at, notes
+            API->>DB: UPDATE cars SET status = available WHERE id = carId
             API-->>FE: 200 OK with updated incident
             FE-->>FleetMgr: Incident marked cleared; car shown as available
         end
